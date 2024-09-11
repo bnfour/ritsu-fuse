@@ -9,7 +9,23 @@ namespace Bnfour.RitsuFuse.Proper;
 /// </summary>
 public class RitsuFuseWrapper
 {
-    private readonly string[] _fuseOptions = [];
+    /// <summary>
+    /// Common options for the FUSE file system.
+    /// </summary>
+    private readonly string[] _fuseOptions =
+    [
+        // mount as read-only file system
+        "-o ro",
+        // release the file system when app is terminated
+        // TODO it is considered dangerous in the man, is it worth it?
+        "-o auto_unmount",
+        // file system subtype, diplayed in third field in /etc/mtab
+        // as "fuse.ritsu"
+        "-o subtype=ritsu",
+        // to be replaced by file system type, first field in /etc/mtab,
+        // as "{settings.TargetFolder}/random-file" when the data is available
+        string.Empty
+    ];
 
     public void Start(RitsuFuseSettings settings)
     {
@@ -17,7 +33,8 @@ public class RitsuFuseWrapper
 
         using (var fs = new RitsuFuseFileSystem(settings))
         {
-            // TODO provide fuse options, like ro mount and auto unmount
+            _fuseOptions[^1] = $"-o fsname={Path.Combine(settings.TargetFolder, "random-file")}";
+            fs.ParseFuseArguments(_fuseOptions);
             // TODO fs.Start();
         }
     }
