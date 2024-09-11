@@ -1,4 +1,6 @@
 using System.Reflection;
+using Bnfour.RitsuFuse.Proper.Exceptions;
+using Bnfour.RitsuFuse.Proper.Validation;
 
 namespace Bnfour.RitsuFuse.Proper;
 
@@ -42,9 +44,29 @@ public class RitsuFuseWrapper
     public static Version GetVersion()
         => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine library version");
 
+    /// <summary>
+    /// Throws if settings do not pass the validation.
+    /// </summary>
+    /// <param name="settings">Settings instance to validate.</param>
+    /// <exception cref="AggregateException">Contains all validation exceptions
+    /// as <see cref="SettingsValidationException"/></exception>
     private void Validate(RitsuFuseSettings settings)
     {
-        // TODO validation "pipeline"
-        throw new NotImplementedException();
+        List<SettingsValidationException> caught = [];
+        foreach (var validator in SettingsValidatorFactory.GetValidators())
+        {
+            try
+            {
+                validator.Validate(settings);
+            }
+            catch (SettingsValidationException ex)
+            {
+                caught.Add(ex);
+            }
+        }
+        if (caught.Count > 0)
+        {
+            throw new AggregateException(caught);
+        }
     }
 }
