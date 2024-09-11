@@ -26,7 +26,13 @@ public class RitsuFuseSettings
     /// to return the same target. Required because most real-world apps read the link more than once.
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(100);
-    
+
+    /// <summary>
+    /// Name of the actual symlink in the folder managed by the app.
+    /// No extension by default.
+    /// </summary>
+    public string LinkName { get; set; } = "ritsu";
+
     #endregion
 
     #region debug output
