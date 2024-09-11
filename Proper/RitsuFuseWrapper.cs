@@ -37,7 +37,7 @@ public class RitsuFuseWrapper
         {
             _fuseOptions[^1] = $"-o fsname={Path.Combine(settings.TargetFolder, "random-file")}";
             fs.ParseFuseArguments(_fuseOptions);
-            // TODO fs.Start();
+            // fs.Start();
         }
     }
 
