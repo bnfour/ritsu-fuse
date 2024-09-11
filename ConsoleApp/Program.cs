@@ -46,5 +46,5 @@ public class Program
         return await parser.InvokeAsync(args);
     }
     private static Version GetVersion()
-        => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine library version");
+        => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine app version");
 }
