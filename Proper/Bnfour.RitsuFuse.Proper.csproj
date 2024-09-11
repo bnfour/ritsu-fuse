@@ -1,10 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Console\Bnfour.RitsuFuse.Console.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Mono.Fuse.NETStandard" Version="1.1.0" />
   </ItemGroup>
 
@@ -12,6 +8,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Version>0.0.2</Version>
   </PropertyGroup>
 
 </Project>

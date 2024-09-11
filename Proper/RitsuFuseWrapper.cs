@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Bnfour.RitsuFuse.Proper;
 
 /// <summary>
@@ -19,6 +21,9 @@ public class RitsuFuseWrapper
             // TODO fs.Start();
         }
     }
+
+    public static Version GetVersion()
+        => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine library version");
 
     private void Validate(RitsuFuseSettings settings)
     {
