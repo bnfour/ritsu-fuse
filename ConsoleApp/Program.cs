@@ -42,7 +42,7 @@ public class Program
             .CancelOnProcessTermination();
         // TODO consider whether these options are needed
 
-        // TODO actually start the wrapper
+        // TODO actually start the wrapper with settings collected from the arguments
         var parser = commandLineBuilder.Build();
         return await parser.InvokeAsync(args);
     }

@@ -13,5 +13,6 @@ internal static class SettingsValidatorFactory
         // TODO more validators
         yield return new LogAvailabilityValidator();
         yield return new LinkNameValidator();
+        yield return new TimeoutValidator();
     }
 }

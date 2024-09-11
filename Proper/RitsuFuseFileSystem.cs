@@ -11,6 +11,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 {
     /// <summary>
     /// Timestamp to be applied for everithing in the file system.
+    /// Unixtime in seconds, as st_atime. Still filled as st_atim with nanoseconds set to 0.
     /// </summary>
     private readonly long _fsTimestamp;
 
