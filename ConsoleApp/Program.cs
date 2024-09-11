@@ -5,7 +5,7 @@ using System.Reflection;
 
 using Bnfour.RitsuFuse.Proper;
 
-namespace Bnfour.RitsuFuse.Console;
+namespace Bnfour.RitsuFuse.ConsoleApp;
 
 public class Program
 {
@@ -20,8 +20,7 @@ public class Program
         {
             if (boolean)
             {
-                // TODO the "Console" name for this app is dubious, change to ConsoleApp
-                System.Console.WriteLine($"Console app {GetVersion().ToString(3)}, library {RitsuFuseWrapper.GetVersion().ToString(3)}");
+                Console.WriteLine($"Console app {GetVersion().ToString(3)}, library {RitsuFuseWrapper.GetVersion().ToString(3)}");
             }
         }, customVersionOption);
 
