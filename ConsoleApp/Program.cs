@@ -14,8 +14,9 @@ public class Program
         var rootCommand = new RootCommand("Ritsu FUSE console launcher");
 
         var customVersionOption = new Option<bool>("--version", "Display versions for this app and used library");
-        rootCommand.AddGlobalOption(customVersionOption);
+        customVersionOption.AddAlias("-v");
 
+        rootCommand.AddGlobalOption(customVersionOption);
         rootCommand.SetHandler(boolean =>
         {
             if (boolean)
