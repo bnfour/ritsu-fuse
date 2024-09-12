@@ -17,7 +17,9 @@ TODO ffox video
 ## Usage
 ```
 $ Bnfour.RitsuFuse.ConsoleApp -?
-TODO actual header
+Description:
+  Ritsu FUSE console launcher. Ritsu FUSE is a library to create a custom file system that provides a symlink to a random file in a folder, changing after every "meaningful" read.
+
 Usage:
   Bnfour.RitsuFuse.ConsoleApp <target folder> <file system root folder> [options]
 
@@ -76,7 +78,7 @@ The created file system will be removed, leaving its root folder empty again whe
 to stop the app and also remove the created file system.
 
 ## Technical notes
-TODO mtab entry, anything else, also see next section
+TODO mtab entry, usage as library, also see next section
 
 ## Disclaimers/notes
 TODO sort
