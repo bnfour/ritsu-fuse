@@ -46,11 +46,11 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     private Queue<string>? _shuffledQueue;
 
     /// <summary>
-    /// Time of last access to the link. If accessed later than <see cref="RitsuFuseSettings.Timeout"/>,
+    /// Time of last access to the link. If null -- no access yet.
+    /// If accessed later than <see cref="RitsuFuseSettings.Timeout"/>,
     /// new link target is selected. (Most real-world apps read the link more than once, so requests in rapid
     /// succession keep their target stable.)
     /// </summary>
-    // TODO does it have to be nullable?
     private DateTimeOffset? _lastAccessTimestamp;
 
     private readonly Random _random;
@@ -71,7 +71,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         DefaultUserId = GetId("-u");
         DefaultGroupId = GetId("-g");
 
-        Log($"Filesystem owner will be se to {DefaultUserId}:{DefaultGroupId}");
+        Log($"Filesystem owner will be set to {DefaultUserId}:{DefaultGroupId}.");
         Log($"Random file from {_settings.TargetFolder} is available at {Path.Combine(_settings.FileSystemRoot, _settings.LinkName)}");
 
         _random = new();
@@ -222,11 +222,21 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// <param name="lastTarget">Name of the last file used.</param>
     /// <returns>New file name to use.</returns>
     private string GetNewTarget(string lastTarget)
-        => _settings.UseQueue ? GetNewTargetFromQueue(lastTarget) : GetNewTargetFromFileList(lastTarget);
-
-    // TODO handle the cases where files were deleted to the point there are
-    // 0 files -- return an error?
-    // 1 file -- return it without getting stuck in a loop if PreventRepeats is set
+    {
+        switch (_filenames.Count)
+        {
+            case 0:
+                Log("No files in the folder, short-circuiting to /dev/null.");
+                return "/dev/null";
+            case 1:
+                Log("Only one file in the folder, short-circuiting to it.");
+                return _filenames.First();
+            default:
+                return _settings.UseQueue
+                    ? GetNewTargetFromQueue(lastTarget)
+                    : GetNewTargetFromFileList(lastTarget);
+        }
+    }
 
     /// <summary>
     /// Gets a new random file name from all files in the folder,
@@ -293,6 +303,11 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         {
             throw new ApplicationException("Invalid FileSystemEventArgs passed");
         }
+        if (!File.Exists(e.FullPath))
+        {
+            Log($"{e.FullPath} added, but it's not a file. Not my job.");
+            return;
+        }
 
         Log($"{e.FullPath} added, registering.");
 
@@ -317,15 +332,16 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             throw new ApplicationException("Invalid FileSystemEventArgs passed");
         }
 
-        // TODO what if the current file was removed?
+        if (!_filenames.Remove(e.FullPath))
+        {
+            Log($"{e.FullPath} removed, but it was not tracked anyway.");
+            return;
+        }
 
         Log($"{e.FullPath} removed, unregistering.");
 
-        _filenames.Remove(e.FullPath);
-
         var countMessage = _filenames.Count switch
         {
-            // TODO actually point to /dev/null
             0 => "No files left! Link will point to /dev/null until some files are added!",
             1 => "Only one file left! Consider adding more files to get random target symlinks.",
             _ => null
@@ -338,7 +354,13 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         if (_settings.UseQueue)
         {
             _shuffledQueue = new(_shuffledQueue!.Where(fn => fn != e.FullPath));
-            Log($"Removing the file from the queue as well. {_shuffledQueue} elements remain in the queue.");
+            Log($"Removing the file from the queue as well. {_shuffledQueue.Count} elements remain in the queue.");
+        }
+
+        if (_currentFile == e.FullPath)
+        {
+            Log("The deleted file was the current target, rerolling.");
+            _currentFile = GetNewTarget(_lastFile ?? string.Empty);
         }
     }
 
@@ -349,9 +371,13 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             throw new ApplicationException("Invalid RenamedEventArgs passed");
         }
 
-        Log($"{e.OldFullPath} renamed to {e.FullPath}, registering.");
+        if (!File.Exists(e.FullPath))
+        {
+            Log($"{e.OldFullPath} renamed to {e.FullPath}, but it's not a file. Not my job.");
+            return;
+        }
 
-        // TODO what if the current file was renamed?
+        Log($"{e.OldFullPath} renamed to {e.FullPath}, registering.");
 
         _filenames.Remove(e.OldFullPath);
         _filenames.Add(e.FullPath);
@@ -362,6 +388,12 @@ internal sealed class RitsuFuseFileSystem : FileSystem
                 _shuffledQueue!.Where(fn => fn != e.OldFullPath)
                 .Append(e.FullPath)
                 .OrderBy(fn => _random.Next()));
+        }
+
+        if (_currentFile == e.OldFullPath)
+        {
+            Log("The renamed file was the current target, renaming.");
+            _currentFile = e.FullPath;
         }
     }
 

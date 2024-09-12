@@ -43,13 +43,14 @@ public class Program
         // TODO consider whether these options are needed
 
         // TODO actually start the wrapper with settings collected from the arguments
+        // TODO ^C handler for "graceful" exit
         new RitsuFuseWrapper().Start(new RitsuFuseSettings
         {
             TargetFolder = "/home/me/Downloads/ritsu",
             FileSystemRoot = "/tmp/ayaya",
             PreventRepeats = true,
             UseQueue = true,
-            Verbose = false,
+            Verbose = true,
             LogAction = Console.WriteLine
         });
 
