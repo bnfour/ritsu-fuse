@@ -41,12 +41,9 @@ public class Program
 
     private static Parser CreateCommandParser()
     {
-        var rootCommand = new RootCommand("Ritsu FUSE console launcher");
+        var rootCommand = new RootCommand("Ritsu FUSE console launcher. Ritsu FUSE is a library to create a custom file system that provides a symlink to a random file in a folder, changing after every \"meaningful\" read.");
 
-        var customVersionOption = new Option<bool>("--version", "Display versions for this app and used library");
-        customVersionOption.AddAlias("-v");
-        rootCommand.AddGlobalOption(customVersionOption);
-
+        #region regular arguments and options
         var targetFolderArgument = new Argument<FileInfo>("target folder", "Folder with files to create a random symlink to. Must contain at least 2 files.");
         var rootFolderArgument = new Argument<FileInfo>("file system root folder", "Folder to host the file system. Must exist and be empty.");
 
@@ -67,21 +64,30 @@ public class Program
         rootCommand.AddOption(queueOption);
         rootCommand.AddOption(linkNameOption);
 
-        rootCommand.SetHandler((isVersion, settings) =>
-        {
-            if (isVersion)
-            {
-                Console.WriteLine($"Console app {GetVersion().ToString(3)}, library {RitsuFuseWrapper.GetVersion().ToString(3)}");
-            }
-            else
-            {
-                Start(settings);
-            }
-        }, customVersionOption, new SettingsBinder(targetFolderArgument, rootFolderArgument, timeoutOption, verboseOption, noRepeatsOption, queueOption, linkNameOption));
+        rootCommand.SetHandler(Start, new SettingsBinder(targetFolderArgument, rootFolderArgument, timeoutOption, verboseOption, noRepeatsOption, queueOption, linkNameOption));
+        #endregion
+
+        var customVersionOption = new Option<bool>("--version", "Display versions for this app and used library");
+        customVersionOption.AddAlias("-v");
+        rootCommand.AddGlobalOption(customVersionOption);
 
         // the default handler for --version takes over custom stuff,
         // so it is excluded from the pipeline here
         var commandLineBuilder = new CommandLineBuilder(rootCommand);
+        // instead we use a custom middleware to display versions of two assemblies
+        // this _in theory_ should override any other options
+        commandLineBuilder.AddMiddleware(async (context, next) =>
+        {
+            if (context.ParseResult.HasOption(customVersionOption))
+            {
+                context.Console.WriteLine($"Console app {GetVersion().ToString(3)}, library {RitsuFuseWrapper.GetVersion().ToString(3)}");
+            }
+            else
+            {
+                await next(context);
+            }
+        });
+
         // basically, UseDefaults but without the version option
         // because it takes over our custom handler
         commandLineBuilder
@@ -95,6 +101,7 @@ public class Program
             .UseExceptionHandler()
             .CancelOnProcessTermination();
         // TODO consider whether these options are needed
+
 
         return commandLineBuilder.Build();
     }
