@@ -247,9 +247,14 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     private string GetNewTargetFromFileList(string lastTarget)
     {
         string newTarget;
+        var rerollCount = 0;
         do
         {
             newTarget = _filenames[_random.Next(_filenames.Count)];
+            if (++rerollCount > 1)
+            {
+                Log($"Rerolling the file again{(rerollCount > 2 ? new string('!', rerollCount - 2) : string.Empty)} to prevent repeating file. 1/{Math.Pow(_filenames.Count, rerollCount - 1)} odds.");
+            }
         }
         while (_settings.PreventRepeats && newTarget == lastTarget);
 
@@ -272,9 +277,15 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         }
         else
         {
+            Log("The queue has ended, rerolling.");
+            var rerollCount = 0;
             do
             {
                 _shuffledQueue = new(_filenames.OrderBy(fn => _random.Next()));
+                if (++rerollCount > 1)
+                {
+                    Log($"Rerolling the queue again{(rerollCount > 2 ? new string('!', rerollCount - 2) : string.Empty)} to prevent repeating file. 1/{Math.Pow(_filenames.Count, rerollCount - 1)} odds.");
+                }
             }
             while (_settings.PreventRepeats && _shuffledQueue.Peek() == lastTarget);
             return _shuffledQueue.Dequeue();
