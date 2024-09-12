@@ -49,6 +49,7 @@ public class Program
             FileSystemRoot = "/tmp/ayaya",
             PreventRepeats = true,
             UseQueue = true,
+            Verbose = false,
             LogAction = Console.WriteLine
         });
 

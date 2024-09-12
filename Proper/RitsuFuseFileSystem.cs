@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Mono.Fuse.NETStandard;
 using Mono.Unix.Native;
 
@@ -64,9 +65,14 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
         _fsTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+        Log($"{nameof(RitsuFuseFileSystem)} starting at {_fsTimestamp}. Hello, world!");
+
         MountPoint = _settings.FileSystemRoot;
         DefaultUserId = GetId("-u");
         DefaultGroupId = GetId("-g");
+
+        Log($"Filesystem owner will be se to {DefaultUserId}:{DefaultGroupId}");
+        Log($"Random file from {_settings.TargetFolder} is available at {Path.Combine(_settings.FileSystemRoot, _settings.LinkName)}");
 
         _random = new();
 
@@ -77,6 +83,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
         if (_settings.UseQueue)
         {
+            Log("Initializing queue.");
             _shuffledQueue = new(_filenames.OrderBy(fn => _random.Next()));
             _currentFile = _shuffledQueue.Dequeue();
         }
@@ -179,14 +186,30 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         // this is the first request, rerolling is not necessary
         TimeSpan? delta = now - _lastAccessTimestamp;
 
+        var message = delta.HasValue
+            ? $"{delta.Value.TotalMilliseconds:0}ms since last "
+            : "First ";
+        var sb = new StringBuilder(message);
+        sb.Append($"{nameof(OnReadSymbolicLink)} request, ");
+
+
         if (delta > _settings.Timeout)
         {
             _lastFile = _currentFile;
             _currentFile = GetNewTarget(_lastFile);
+
+            sb.Append("rerolling the target.");
+        }
+        else
+        {
+            sb.Append("keeping existing target");
         }
 
         _lastAccessTimestamp = now;
         target = _currentFile;
+
+        Log(sb.ToString());
+
         return 0;
     }
 
@@ -271,10 +294,18 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             throw new ApplicationException("Invalid FileSystemEventArgs passed");
         }
 
+        Log($"{e.FullPath} added, registering.");
+
         _filenames.Add(e.FullPath);
+
+        if (_filenames.Count == 1)
+        {
+            Log("Consider adding more files to get random target symlinks.");
+        }
+
         if (_settings.UseQueue)
         {
-            // reshuffle the current queue after adding the new file
+            Log($"Creating a new queue from {_shuffledQueue!.Count} remaining and the new element.");
             _shuffledQueue = new(_shuffledQueue!.Append(e.FullPath).OrderBy(fn => _random.Next()));
         }
     }
@@ -286,11 +317,28 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             throw new ApplicationException("Invalid FileSystemEventArgs passed");
         }
 
+        // TODO what if the current file was removed?
+
+        Log($"{e.FullPath} removed, unregistering.");
+
         _filenames.Remove(e.FullPath);
+
+        var countMessage = _filenames.Count switch
+        {
+            // TODO actually point to /dev/null
+            0 => "No files left! Link will point to /dev/null until some files are added!",
+            1 => "Only one file left! Consider adding more files to get random target symlinks.",
+            _ => null
+        };
+        if (countMessage != null)
+        {
+            Log(countMessage);
+        }
+
         if (_settings.UseQueue)
         {
-            // remove the deleted file name from the queue
             _shuffledQueue = new(_shuffledQueue!.Where(fn => fn != e.FullPath));
+            Log($"Removing the file from the queue as well. {_shuffledQueue} elements remain in the queue.");
         }
     }
 
@@ -301,10 +349,15 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             throw new ApplicationException("Invalid RenamedEventArgs passed");
         }
 
+        Log($"{e.OldFullPath} renamed to {e.FullPath}, registering.");
+
+        // TODO what if the current file was renamed?
+
         _filenames.Remove(e.OldFullPath);
         _filenames.Add(e.FullPath);
         if (_settings.UseQueue)
         {
+            Log("Recreating the queue following renaming.");
             _shuffledQueue = new(
                 _shuffledQueue!.Where(fn => fn != e.OldFullPath)
                 .Append(e.FullPath)
