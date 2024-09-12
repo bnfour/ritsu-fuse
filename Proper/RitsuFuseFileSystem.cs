@@ -248,6 +248,18 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         }
     }
 
+    /// <summary>
+    /// Invokes the provided logging action for a message, if verbose flag is set.
+    /// </summary>
+    /// <param name="message">Message to log.</param>
+    private void Log(string message)
+    {
+        if (_settings.Verbose)
+        {
+            _settings.LogAction?.Invoke(message);
+        }
+    }
+
     private bool IsFileSystemRoot(string path) => path == "/";
 
     private bool IsSymlinkPath(string path) => path == $"/{_settings.LinkName}";
