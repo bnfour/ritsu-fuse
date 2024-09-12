@@ -10,9 +10,11 @@ internal static class SettingsValidatorFactory
     /// <returns>An enumerable of active validators.</returns>
     internal static IEnumerable<ISettingsValidator> GetValidators()
     {
-        // TODO more validators
         yield return new LogAvailabilityValidator();
         yield return new LinkNameValidator();
         yield return new TimeoutValidator();
+        yield return new FileSystemRootFolderValidator();
+        yield return new TargerFolderValidator();
+        yield return new DifferentFoldersValidator();
     }
 }
