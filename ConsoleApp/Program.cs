@@ -12,6 +12,35 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        // TODO some handler for a "graceful" exit at least on ^C
+
+        return await CreateCommandParser().InvokeAsync(args);
+    }
+    private static Version GetVersion()
+        => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine app version.");
+    
+    private static void Start(RitsuFuseSettings settings)
+    {
+        try
+        {
+            new RitsuFuseWrapper().Start(settings);
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is SettingsValidationException))
+        {
+            Console.WriteLine("The following errors were found in the configuration:");
+            foreach (var e in ex.InnerExceptions)
+            {
+                Console.WriteLine($"\t{e.Message}");
+            }
+        }
+        catch
+        {
+            Console.WriteLine("Something terribly bad happened! :(");
+        }
+    }
+
+    private static Parser CreateCommandParser()
+    {
         var rootCommand = new RootCommand("Ritsu FUSE console launcher");
 
         var customVersionOption = new Option<bool>("--version", "Display versions for this app and used library");
@@ -46,7 +75,6 @@ public class Program
             }
             else
             {
-                // TODO ^C handler for "graceful" exit
                 Start(settings);
             }
         }, customVersionOption, new SettingsBinder(targetFolderArgument, rootFolderArgument, timeoutOption, verboseOption, noRepeatsOption, queueOption, linkNameOption));
@@ -68,29 +96,6 @@ public class Program
             .CancelOnProcessTermination();
         // TODO consider whether these options are needed
 
-        var parser = commandLineBuilder.Build();
-        return await parser.InvokeAsync(args);
-    }
-    private static Version GetVersion()
-        => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine app version");
-    
-    private static void Start(RitsuFuseSettings settings)
-    {
-        try
-        {
-            new RitsuFuseWrapper().Start(settings);
-        }
-        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is SettingsValidationException))
-        {
-            Console.WriteLine("The following errors were found in the configuration:");
-            foreach (var e in ex.InnerExceptions)
-            {
-                Console.WriteLine($"\t{e.Message}");
-            }
-        }
-        catch
-        {
-            Console.WriteLine("Something terribly bad happened!");
-        }
+        return commandLineBuilder.Build();
     }
 }
