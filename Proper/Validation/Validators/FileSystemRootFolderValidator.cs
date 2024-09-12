@@ -22,7 +22,7 @@ public class FileSystemRootFolderValidator : ISettingsValidator
                 throw new SettingsValidationException($"Folder {fsRoot} is not empty.");
             }
         }
-        catch
+        catch (Exception ex) when (ex is not SettingsValidationException)
         {
             throw new SettingsValidationException($"Some kind of error checking folder {fsRoot}. Access rights?");
         }
