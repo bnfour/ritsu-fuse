@@ -57,7 +57,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     private readonly FileSystemWatcher _fsWatcher;
 
-    private bool Disposed = false;
+    private bool _disposed = false;
 
     internal RitsuFuseFileSystem(RitsuFuseSettings settings)
     {
@@ -426,7 +426,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     protected override void Dispose(bool disposing)
     {
         // Check to see if Dispose has already been called.
-        if (!Disposed)
+        if (!_disposed)
         {
             // If disposing equals true, dispose all managed
             // and unmanaged resources.
@@ -436,7 +436,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
                 _fsWatcher.Dispose();
             }
             // Note disposing has been done.
-            Disposed = true;
+            _disposed = true;
         }
     }
 }
