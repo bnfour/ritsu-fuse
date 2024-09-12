@@ -22,7 +22,7 @@ public class TargerFolderValidator : ISettingsValidator
                 throw new SettingsValidationException($"Folder {tFolder} does not contain at least two files.");
             }
         }
-        catch
+        catch (Exception ex) when (ex is not SettingsValidationException)
         {
             throw new SettingsValidationException($"Some kind of error checking target folder {tFolder}. Access rights?");
         }
