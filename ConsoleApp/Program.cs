@@ -48,7 +48,7 @@ public class Program
             TargetFolder = "/home/me/Downloads/ritsu",
             FileSystemRoot = "/tmp/ayaya",
             PreventRepeats = true,
-            UseQueue = false
+            UseQueue = true
         });
 
         var parser = commandLineBuilder.Build();

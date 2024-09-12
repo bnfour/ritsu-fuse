@@ -54,6 +54,10 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     private readonly Random _random;
 
+    private readonly FileSystemWatcher _fsWatcher;
+
+    private bool Disposed = false;
+
     internal RitsuFuseFileSystem(RitsuFuseSettings settings)
     {
         _settings = settings;
@@ -80,8 +84,31 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         {
             _currentFile = _filenames[_random.Next(_filenames.Count)];
         }
-        // TODO support for files added and removed from the target folder
-        // FileSystemWatcher?
+
+        _fsWatcher = CreateWatcher();
+    }
+
+    private FileSystemWatcher CreateWatcher()
+    {
+        FileSystemWatcher watcher = new(_settings.TargetFolder)
+        {
+            EnableRaisingEvents = true,
+            NotifyFilter = NotifyFilters.Attributes
+                | NotifyFilters.CreationTime
+                | NotifyFilters.DirectoryName
+                | NotifyFilters.FileName
+                | NotifyFilters.LastAccess
+                | NotifyFilters.LastWrite
+                | NotifyFilters.Security
+                | NotifyFilters.Size
+        };
+
+        watcher.Created += HandleFileCreated;
+        watcher.Deleted += HandleFileDeleted;
+        watcher.Renamed += HandleFileRenamed;
+        // TODO error handler as well
+
+        return watcher;
     }
 
     protected override Errno OnGetPathStatus(string path, out Stat stat)
@@ -163,6 +190,9 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         return 0;
     }
 
+    // TODO should probably make this stuff thread-safe,
+    // at least using locks
+
     /// <summary>
     /// Dispatcher method to get the new target file name in a way relevant to the settings.
     /// </summary>
@@ -170,6 +200,10 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// <returns>New file name to use.</returns>
     private string GetNewTarget(string lastTarget)
         => _settings.UseQueue ? GetNewTargetFromQueue(lastTarget) : GetNewTargetFromFileList(lastTarget);
+
+    // TODO handle the cases where files were deleted to the point there are
+    // 0 files -- return an error?
+    // 1 file -- return it without getting stuck in a loop if PreventRepeats is set
 
     /// <summary>
     /// Gets a new random file name from all files in the folder,
@@ -218,6 +252,54 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     private bool IsSymlinkPath(string path) => path == $"/{_settings.LinkName}";
 
+    private void HandleFileCreated(object sender, FileSystemEventArgs e)
+    {
+        if (e.ChangeType != WatcherChangeTypes.Created)
+        {
+            throw new ApplicationException("Invalid FileSystemEventArgs passed");
+        }
+
+        _filenames.Add(e.FullPath);
+        if (_settings.UseQueue)
+        {
+            // reshuffle the current queue after adding the new file
+            _shuffledQueue = new(_shuffledQueue!.Append(e.FullPath).OrderBy(fn => _random.Next()));
+        }
+    }
+
+    private void HandleFileDeleted(object sender, FileSystemEventArgs e)
+    {
+        if (e.ChangeType != WatcherChangeTypes.Deleted)
+        {
+            throw new ApplicationException("Invalid FileSystemEventArgs passed");
+        }
+
+        _filenames.Remove(e.FullPath);
+        if (_settings.UseQueue)
+        {
+            // remove the deleted file name from the queue
+            _shuffledQueue = new(_shuffledQueue!.Where(fn => fn != e.FullPath));
+        }
+    }
+
+    private void HandleFileRenamed(object sender, RenamedEventArgs e)
+    {
+        if (e.ChangeType != WatcherChangeTypes.Renamed)
+        {
+            throw new ApplicationException("Invalid RenamedEventArgs passed");
+        }
+
+        _filenames.Remove(e.OldFullPath);
+        _filenames.Add(e.FullPath);
+        if (_settings.UseQueue)
+        {
+            _shuffledQueue = new(
+                _shuffledQueue!.Where(fn => fn != e.OldFullPath)
+                .Append(e.FullPath)
+                .OrderBy(fn => _random.Next()));
+        }
+    }
+
     /// <summary>
     /// Invokes "id argument" to get an id.
     /// </summary>
@@ -241,6 +323,23 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             idProcess.Start();
 
             return long.Parse(idProcess.StandardOutput.ReadToEnd());
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        // Check to see if Dispose has already been called.
+        if (!Disposed)
+        {
+            // If disposing equals true, dispose all managed
+            // and unmanaged resources.
+            if (disposing)
+            {
+                // Dispose managed resources.
+                _fsWatcher.Dispose();
+            }
+            // Note disposing has been done.
+            Disposed = true;
         }
     }
 }
