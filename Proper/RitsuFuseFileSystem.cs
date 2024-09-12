@@ -107,13 +107,13 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             },
         };
 
-        if (path == "/")
+        if (IsFileSystemRoot(path))
         {
             stat.st_mode = FilePermissions.S_IFDIR | NativeConvert.FromOctalPermissionString("0444");
             stat.st_nlink = 2;
             return 0;
         }
-        else if (path == $"/{_settings.LinkName}")
+        else if (IsSymlinkPath(path))
         {
             stat.st_mode = FilePermissions.S_IFLNK | NativeConvert.FromOctalPermissionString("0444");
             stat.st_size = _currentFile.Length;
@@ -125,7 +125,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     protected override Errno OnReadDirectory(string directory, OpenedPathInfo info, out IEnumerable<DirectoryEntry> paths)
     {
-        if (directory == "/")
+        if (IsFileSystemRoot(directory))
         {
             paths =
             [
@@ -141,7 +141,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     protected override Errno OnReadSymbolicLink(string link, out string target)
     {
-        if (link != $"/{_settings.LinkName}")
+        if (!IsSymlinkPath(link))
         {
             target = "/dev/null";
             return Errno.ENOENT;
@@ -154,39 +154,69 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
         if (delta > _settings.Timeout)
         {
-            // TODO move net item logic to separate methods
             _lastFile = _currentFile;
-            if (_settings.UseQueue)
-            {
-                if (_shuffledQueue!.TryDequeue(out var newFile))
-                {
-                    _currentFile = newFile;
-                }
-                else
-                {
-                    do
-                    {
-                        _shuffledQueue = new(_filenames.OrderBy(fn => _random.Next()));
-                    }
-                    while (_settings.PreventRepeats && _shuffledQueue.Peek() == _lastFile);
-                    _currentFile = _shuffledQueue.Dequeue();
-                }
-            }
-            else
-            {
-                do
-                {
-                    _currentFile = _filenames[_random.Next(_filenames.Count)];
-                }
-                while (_settings.PreventRepeats && _currentFile == _lastFile);
-            }
-            
+            _currentFile = GetNewTarget(_lastFile);
         }
 
         _lastAccessTimestamp = now;
         target = _currentFile;
         return 0;
     }
+
+    /// <summary>
+    /// Dispatcher method to get the new target file name in a way relevant to the settings.
+    /// </summary>
+    /// <param name="lastTarget">Name of the last file used.</param>
+    /// <returns>New file name to use.</returns>
+    private string GetNewTarget(string lastTarget)
+        => _settings.UseQueue ? GetNewTargetFromQueue(lastTarget) : GetNewTargetFromFileList(lastTarget);
+
+    /// <summary>
+    /// Gets a new random file name from all files in the folder,
+    /// optionally preventing the same one file showing up twice in a row.
+    /// </summary>
+    /// <param name="lastTarget">Name of the last file used.</param>
+    /// <returns>New file name to use.</returns>
+    private string GetNewTargetFromFileList(string lastTarget)
+    {
+        string newTarget;
+        do
+        {
+            newTarget = _filenames[_random.Next(_filenames.Count)];
+        }
+        while (_settings.PreventRepeats && newTarget == lastTarget);
+
+        return newTarget;
+    }
+
+    /// <summary>
+    /// Get a new file name from the shuffled queue, regenerating it if needed,
+    /// optionally preventing the same one file showing up twice in a row.
+    /// </summary>
+    /// <param name="lastTarget">Name of the last file used.</param>
+    /// <returns>New file name to use.</returns>
+    private string GetNewTargetFromQueue(string lastTarget)
+    {
+        // this should only be called when queue mode is initialized,
+        // so it's probably safe to assume it's not null here
+        if (_shuffledQueue!.TryDequeue(out var newTarget))
+        {
+            return newTarget;
+        }
+        else
+        {
+            do
+            {
+                _shuffledQueue = new(_filenames.OrderBy(fn => _random.Next()));
+            }
+            while (_settings.PreventRepeats && _shuffledQueue.Peek() == lastTarget);
+            return _shuffledQueue.Dequeue();
+        }
+    }
+
+    private bool IsFileSystemRoot(string path) => path == "/";
+
+    private bool IsSymlinkPath(string path) => path == $"/{_settings.LinkName}";
 
     /// <summary>
     /// Invokes "id argument" to get an id.
