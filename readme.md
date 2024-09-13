@@ -6,6 +6,8 @@ _(originally derived from "Random Target Symlink + Filesystem in Userspace")_
 The main use is probably the extension of apps that only support loading a single file from fixed path for some purpose. By providing it with a Ritsu FUSE symlink, you can trick it to load different files every invocation. Unless it has an aggressive cache.
 
 ## Disclaimers
+Don't take it too seriously. It's more of a quick-and-dirty concept implementation than a production-ready robust app.
+
 I have a vague understanding of FUSE internals and related mono wrappers, the app just works (for me; most of the time). I cannot guarantee this app is free of errors, remember the all-caps "the software is provided 'as is'" section from the license. If you know how to improve the app's behaviour, you're welcome to send pulls.
 
 A lot of insight was gained from [this article](http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/). It's a way better way to learn FUSE hands-on than this repo.
@@ -14,7 +16,7 @@ A lot of insight was gained from [this article](http://www.maastaar.net/fuse/lin
 ###### Why?
 That's an excellent question! I'm torn between "why not" and "no idea" ¯\\\_(ツ)\_/¯
 
-I had that random silly idea when I was thinking about ways to "improve" another app. I since figured out a better way to do that, but this "random symlink lule" thought stuck and I found an article about FUSE -- so here it is, for everyone's enjoyment(?).
+I had that random silly idea when I was thinking about ways to "improve" another app. I since figured out a better way to do that, but this "random symlink lule" thought stuck and I later found an article about FUSE -- so here it is, for everyone's enjoyment(?).
 
 It is also my first time using [System.Commandline](https://learn.microsoft.com/en-us/dotnet/standard/commandline/); I must say it's really cool. I always missed [python's argparse](https://docs.python.org/3/library/argparse.html)-like stuff in my favourite framework.
 
@@ -22,16 +24,17 @@ It is also my first time using [System.Commandline](https://learn.microsoft.com/
 It just came to my mind when I was expanding "RTS" (as in "random target symlink") to words to use with "FUSE" as a name. I also like 「K-ON!」 (you probably can tell from the next section).
 
 ## Demo
+The power of Ritsu FUSE, graphically.
 
 ### Barebones app usage example
-Diagnostic log included.
+Diagnostic log included, basic concept of this app looks like this:
 
-TODO terminals video
+TODO terminals video (or image?)
 
 ### Real-world (no, not really) usage examples
 These can also be done in a different way and are somewhat scuffed, but hey, I have an app to advertise.
 
-I actually don't use these -- this is an attempt to justify the app's existence. If you know a better way to use it, by all means, do let me know.
+I actually don't use these -- this is an offhand attempt to justify the app's existence. If you know a better way to use it, by all means, do let me know.
 
 All demo images are from [here](https://k-on.fandom.com/wiki/Ritsu_Tainaka%27s_Gallery). (Please ask me nicely to remove them before sending the repo to the shadow realm if you have power to do so.)
 
@@ -58,12 +61,27 @@ There's also some additional setup to defeat caching -- otherwise, there would b
 #### VS Code background
 The easiest [citation needed] way to have a background image in VS Code is to patch its CSS. No extensions required! (But there are some that probably do exactly that.)
 
-By setting the background image URL to a Ritsu FUSE symlink, you can get a fresh image for new window:
+By setting the background image URL to a Ritsu FUSE symlink, you can get a fresh image for new windows (opacity is way down here):
 
-TODO image
+![shoutout to pixl-garden.BongoCat extension, i like it a lot](readme-images/exhibit2.jpg)
 
 ## Requirements
-.NET 8 runtime and an OS that supports FUSE. Only tested on GNU/Linux, if you're brave enough to try it on another OS, you'll have to build it yourself.
+.NET 8 runtime and an OS that supports FUSE. Only tested on GNU/Linux, if you're brave enough to try it on another OS, you'll have to [build](#building-from-source) it yourself.
+
+## Technical details
+The app will create a read-only FUSE file system. It's `/etc/mtab` entry generally looks like
+```
+/home/user/Downloads/ritsu/random-file /tmp/demo fuse.ritsu ro,nosuid,nodev,relatime,user_id=1000,group_id=1000 0
+```
+
+The folder and the symlink in it are owned by the user that started the app, but are readable by everyone (`0444` or `-r--r--r--`).
+
+The link will then point to a random file directly inside the target folder, any subfolders are ignored.
+
+The link will not change its target on _every_ read. Instead, if a [set amount of time](#timeout) has passed since the last read, the target is updated. This is so because most apps actually read the link a few times when pointed to it once, see for yourself in [verbose mode](#verbosity).
+
+The app handles changes to the list of files from the target folder, adjusting target pool accordingly. If no files remain, the link will point to `/dev/null`.
+TODO but what will happen if the folder is outright deleted?
 
 ## Usage
 ```
@@ -116,7 +134,7 @@ _(that actually make it less random)_
 Both of these options can be active at the same time!
 
 #### Link name
-`--link-name <name>` can be used to change symlink's default name, `ritsu`, to whatever else (which does not contain path separators and is neither `.` nor `..`).
+`--link-name <name>` can be used to change symlink's default name, `ritsu`, to whatever else (which does not contain path separators and is neither `.` nor `..`). It's useful when an app expects a file with a specific extension.
 
 ### Global options
 `-v` or `--version` displays the versions of both components of the app -- the console app, and the actual library.
@@ -133,7 +151,7 @@ This repo contains two projects:
 - `Bnfour.RitsuFuse.ConsoleApp` is a simple console wrapper
 - `Bnfour.RitsuFuse.Proper` is a library that does actual work
 
-The library proper can be used with your code. For more info, check the actual source code.
+The library proper can be used with your code. For a detailed usage info, check the actual source code.
 
 ### Calling
 ```csharp
