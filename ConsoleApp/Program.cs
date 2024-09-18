@@ -19,11 +19,12 @@ public class Program
     private static Version GetVersion()
         => Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Unable to determine app version.");
     
-    private static void Start(RitsuFuseSettings settings)
+    private static Task<int> Start(RitsuFuseSettings settings)
     {
         try
         {
             new RitsuFuseWrapper().Start(settings);
+            return Task.FromResult(0);
         }
         catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is SettingsValidationException))
         {
@@ -32,10 +33,12 @@ public class Program
             {
                 Console.WriteLine($"\t{e.Message}");
             }
+            return Task.FromResult(2);
         }
         catch
         {
             Console.WriteLine("Something terribly bad happened! :(");
+            return Task.FromResult(1);
         }
     }
 

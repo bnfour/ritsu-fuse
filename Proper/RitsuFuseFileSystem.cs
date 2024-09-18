@@ -126,6 +126,8 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         FileSystemWatcher watcher = new(_settings.TargetFolder)
         {
             EnableRaisingEvents = true,
+            IncludeSubdirectories = false,
+            // TODO consider if all of these are necessary
             NotifyFilter = NotifyFilters.Attributes
                 | NotifyFilters.CreationTime
                 | NotifyFilters.DirectoryName
@@ -139,7 +141,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         watcher.Created += HandleFileCreated;
         watcher.Deleted += HandleFileDeleted;
         watcher.Renamed += HandleFileRenamed;
-        // TODO error handler as well
+        watcher.Error += HandleWatcherError;
 
         return watcher;
     }
@@ -440,6 +442,14 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         }
     }
 
+    private void HandleWatcherError(object sender, ErrorEventArgs e)
+    {
+        Log("FileSystemWatcher error: " + e.GetException().Message);
+        Stop();
+        // we should crash as well
+        throw new ApplicationException("Cannot continue without the FileSystemWatcher");
+    }
+
     /// <summary>
     /// Invokes "id argument" to get an id.
     /// </summary>
@@ -468,17 +478,13 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     protected override void Dispose(bool disposing)
     {
-        // Check to see if Dispose has already been called.
         if (!_disposed)
         {
-            // If disposing equals true, dispose all managed
-            // and unmanaged resources.
+            Log("Thank you for using umount. Bye!");
             if (disposing)
             {
-                // Dispose managed resources.
                 _fsWatcher.Dispose();
             }
-            // Note disposing has been done.
             _disposed = true;
         }
     }
