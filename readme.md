@@ -26,17 +26,21 @@ It just came to my mind when I was expanding "RTS" (as in "random target symlink
 ## Demo
 The power of Ritsu FUSE, graphically.
 
+All demo images are from [here](https://k-on.fandom.com/wiki/Ritsu_Tainaka%27s_Gallery). (Please ask me nicely to remove them before sending the repo to the shadow realm if you have power to do so.)
+
 ### Barebones app usage example
 Diagnostic log included, basic concept of this app looks like this:
 
-TODO terminals video (or image?)
+![these might as well be a text logs, but i couldn't resist using some backgrounds; funnily enough, urxvt does not need this app for random backgrounds](readme-images/exhibit0.png)
+
+Here, the top terminal window houses a Ritsu FUSE app instance to create a symlink to a random file from `/tmp/demo/src` (there are 8 images in that folder). The symlink itself is available at `/tmp/demo/dst/ritsu`. [Advanced random options](#random-options) are enabled as well.
+
+Then, in the bottom terminal window `readlink(1)` is used to resolve the random symlink 8 times in a row with a slight delay. Because a file queue is used, the link points to each file once. The second cycle demonstrates that the queue is then rerolled and the same files are again used as a target once. Finally, `umount(8)` is used to shut down the app gracefully.
 
 ### Real-world (no, not really) usage examples
 These can also be done in a different way and are somewhat scuffed, but hey, I have an app to advertise.
 
 I actually don't use these -- this is an offhand attempt to justify the app's existence. If you know a better way to use it, by all means, do let me know.
-
-All demo images are from [here](https://k-on.fandom.com/wiki/Ritsu_Tainaka%27s_Gallery). (Please ask me nicely to remove them before sending the repo to the shadow realm if you have power to do so.)
 
 #### New tab for Firefox
 Here the app is used to randomize a background image for the new tab:
