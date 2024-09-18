@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Bnfour.RitsuFuse.Proper.Utilities;
 using Mono.Fuse.NETStandard;
 using Mono.Unix.Native;
 
@@ -11,10 +12,11 @@ namespace Bnfour.RitsuFuse.Proper;
 internal sealed class RitsuFuseFileSystem : FileSystem
 {
     /// <summary>
-    /// Timestamp to be applied for everithing in the file system.
-    /// Unixtime in seconds, as st_atime. Still filled as st_atim with nanoseconds set to 0.
+    /// The time this instance was initialized.
+    /// Used as folder's mtime&ctime and as fallback for other values
+    /// if the FS is yet to be accessed.
     /// </summary>
-    private readonly long _fsTimestamp;
+    private readonly DateTimeOffset _fsCreationTimestamp;
 
     /// <summary>
     /// Settings instance. Assumed to be previously validated.
@@ -63,9 +65,9 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     {
         _settings = settings;
 
-        _fsTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        _fsCreationTimestamp = DateTimeOffset.UtcNow;
 
-        Log($"{nameof(RitsuFuseFileSystem)} starting at {_fsTimestamp}. Hello, world!");
+        Log($"{nameof(RitsuFuseFileSystem)} starting at {_fsCreationTimestamp}. Hello, world!");
 
         MountPoint = _settings.FileSystemRoot;
         DefaultUserId = GetId("-u");
@@ -122,23 +124,9 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     {
         stat = new()
         {
-            // we don't need the ns precision,
-            // but let's not use the backward compatibility st_Xtime
-            st_atim = new Timespec
-            {
-                tv_sec = _fsTimestamp,
-                tv_nsec = 0
-            },
-            st_mtim = new Timespec
-            {
-                tv_sec = _fsTimestamp,
-                tv_nsec = 0
-            },
-            st_ctim = new Timespec
-            {
-                tv_sec = _fsTimestamp,
-                tv_nsec = 0
-            },
+            st_atim = _fsCreationTimestamp.ToTimeSpec(),
+            st_mtim = _fsCreationTimestamp.ToTimeSpec(),
+            st_ctim = _fsCreationTimestamp.ToTimeSpec()
         };
 
         if (IsFileSystemRoot(path))
