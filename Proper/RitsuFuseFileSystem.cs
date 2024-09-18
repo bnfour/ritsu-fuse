@@ -102,9 +102,6 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
         _random = new();
 
-        // TODO we're assuming the folder has at least a file,
-        // it's going to be validated externally,
-        // still, add some robustness
         _filenames = [.. Directory.GetFiles(_settings.TargetFolder)];
 
         if (_settings.UseQueue)
@@ -457,7 +454,6 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// <returns>User or group id.</returns>
     private long GetId(string argument)
     {
-        // TODO more robustness
         if (argument != "-u" && argument != "-g")
         {
             throw new ArgumentOutOfRangeException(nameof(argument), "Unsupported id argument.");

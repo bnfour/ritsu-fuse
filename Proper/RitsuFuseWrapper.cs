@@ -19,7 +19,6 @@ public class RitsuFuseWrapper
         // mount as read-only file system
         "-o ro",
         // release the file system when app is terminated
-        // TODO it is considered dangerous in the man, is it worth it?
         "-o auto_unmount",
         // file system subtype, diplayed in third field in /etc/mtab
         // as "fuse.ritsu"

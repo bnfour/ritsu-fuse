@@ -12,8 +12,6 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        // TODO some handler for a "graceful" exit at least on ^C
-
         return await CreateCommandParser().InvokeAsync(args);
     }
     private static Version GetVersion()
