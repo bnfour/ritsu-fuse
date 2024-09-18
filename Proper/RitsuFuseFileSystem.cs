@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Text;
-using Bnfour.RitsuFuse.Proper.Utilities;
+
 using Mono.Fuse.NETStandard;
 using Mono.Unix.Native;
+
+using Bnfour.RitsuFuse.Proper.Utilities;
 
 namespace Bnfour.RitsuFuse.Proper;
 
@@ -49,11 +51,24 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     /// <summary>
     /// Time of last access to the link. If null -- no access yet.
+    /// Reported as link's atime.
     /// If accessed later than <see cref="RitsuFuseSettings.Timeout"/>,
     /// new link target is selected. (Most real-world apps read the link more than once, so requests in rapid
     /// succession keep their target stable.)
     /// </summary>
-    private DateTimeOffset? _lastAccessTimestamp;
+    private DateTimeOffset? _lastLinkReadTimestamp;
+
+    /// <summary>
+    /// Time when the link last changed its target.
+    /// Reported as its ctime and mtime.
+    /// </summary>
+    private DateTimeOffset? _lastLinkModifiedTimestamp;
+
+    /// <summary>
+    /// Time when the folder was last accessed.
+    /// Reported as its atime.
+    /// </summary>
+    private DateTimeOffset? _lastFolderAccessTimestamp;
 
     private readonly Random _random;
 
@@ -122,23 +137,28 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     protected override Errno OnGetPathStatus(string path, out Stat stat)
     {
-        stat = new()
-        {
-            st_atim = _fsCreationTimestamp.ToTimeSpec(),
-            st_mtim = _fsCreationTimestamp.ToTimeSpec(),
-            st_ctim = _fsCreationTimestamp.ToTimeSpec()
-        };
+        stat = new();
 
         if (IsFileSystemRoot(path))
         {
             stat.st_mode = FilePermissions.S_IFDIR | NativeConvert.FromOctalPermissionString("0444");
             stat.st_nlink = 2;
+
+            stat.st_atim = (_lastFolderAccessTimestamp ?? _fsCreationTimestamp).ToTimeSpec();
+            stat.st_ctim = _fsCreationTimestamp.ToTimeSpec();
+            stat.st_mtim = _fsCreationTimestamp.ToTimeSpec();
+
             return 0;
         }
         else if (IsSymlinkPath(path))
         {
             stat.st_mode = FilePermissions.S_IFLNK | NativeConvert.FromOctalPermissionString("0444");
             stat.st_size = _currentFile.Length;
+
+            stat.st_atim = (_lastLinkReadTimestamp ?? _fsCreationTimestamp).ToTimeSpec();
+            stat.st_ctim = (_lastLinkModifiedTimestamp ?? _fsCreationTimestamp).ToTimeSpec();
+            stat.st_mtim = (_lastLinkModifiedTimestamp ?? _fsCreationTimestamp).ToTimeSpec();
+
             return 0;
         }
 
@@ -149,6 +169,8 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     {
         if (IsFileSystemRoot(directory))
         {
+            _lastFolderAccessTimestamp = DateTimeOffset.UtcNow;
+
             paths =
             [
                 new DirectoryEntry("."),
@@ -172,7 +194,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         var now = DateTimeOffset.UtcNow;
         // if _lastAccessTimestamp (and so delta) is null,
         // this is the first request, rerolling is not necessary
-        TimeSpan? delta = now - _lastAccessTimestamp;
+        TimeSpan? delta = now - _lastLinkReadTimestamp;
 
         var message = delta.HasValue
             ? $"{delta.Value.TotalMilliseconds:0}ms since last "
@@ -185,6 +207,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
         {
             _lastFile = _currentFile;
             _currentFile = GetNewTarget(_lastFile);
+            _lastLinkModifiedTimestamp = now;
 
             sb.Append("rerolling the target.");
         }
@@ -193,7 +216,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             sb.Append("keeping existing target");
         }
 
-        _lastAccessTimestamp = now;
+        _lastLinkReadTimestamp = now;
         target = _currentFile;
 
         Log(sb.ToString());
