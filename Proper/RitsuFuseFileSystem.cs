@@ -14,16 +14,13 @@ namespace Bnfour.RitsuFuse.Proper;
 internal sealed class RitsuFuseFileSystem : FileSystem
 {
     /// <summary>
-    /// The time this instance was initialized.
-    /// Used as folder's mtime&ctime and as fallback for other values
-    /// if the FS is yet to be accessed.
-    /// </summary>
-    private readonly DateTimeOffset _fsCreationTimestamp;
-
-    /// <summary>
     /// Settings instance. Assumed to be previously validated.
     /// </summary>
     private readonly RitsuFuseSettings _settings;
+
+    #region file-shuffling related fields
+
+    private readonly Random _random;
 
     /// <summary>
     /// List of the files in the target folder to make links to.
@@ -49,6 +46,16 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// </summary>
     private Queue<string>? _shuffledQueue;
 
+    #endregion
+
+    #region timestamp-related fields
+    /// <summary>
+    /// The time this instance was initialized.
+    /// Used as folder's mtime&ctime and as fallback for other values
+    /// if the FS is yet to be accessed.
+    /// </summary>
+    private readonly DateTimeOffset _fsCreationTimestamp;
+
     /// <summary>
     /// Time of last access to the link. If null -- no access yet.
     /// Reported as link's atime.
@@ -69,8 +76,8 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// Reported as its atime.
     /// </summary>
     private DateTimeOffset? _lastFolderAccessTimestamp;
-
-    private readonly Random _random;
+    
+    #endregion
 
     private readonly FileSystemWatcher _fsWatcher;
 
