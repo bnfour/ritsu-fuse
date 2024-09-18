@@ -81,6 +81,8 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
     private readonly FileSystemWatcher _fsWatcher;
 
+    private readonly object _locker = new();
+
     private bool _disposed = false;
 
     internal RitsuFuseFileSystem(RitsuFuseSettings settings)
@@ -176,15 +178,18 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     {
         if (IsFileSystemRoot(directory))
         {
-            _lastFolderAccessTimestamp = DateTimeOffset.UtcNow;
+            lock (_locker)
+            {
+                _lastFolderAccessTimestamp = DateTimeOffset.UtcNow;
 
-            paths =
-            [
-                new DirectoryEntry("."),
-                new DirectoryEntry(".."),
-                new DirectoryEntry($"{_settings.LinkName}")
-            ];
-            return 0;
+                paths =
+                [
+                    new DirectoryEntry("."),
+                    new DirectoryEntry(".."),
+                    new DirectoryEntry($"{_settings.LinkName}")
+                ];
+                return 0;
+            }
         }
         paths = [];
         return Errno.ENOENT;
@@ -198,41 +203,40 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             return Errno.ENOENT;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        // if _lastAccessTimestamp (and so delta) is null,
-        // this is the first request, rerolling is not necessary
-        TimeSpan? delta = now - _lastLinkReadTimestamp;
-
-        var message = delta.HasValue
-            ? $"{delta.Value.TotalMilliseconds:0}ms since last "
-            : "First ";
-        var sb = new StringBuilder(message);
-        sb.Append($"{nameof(OnReadSymbolicLink)} request, ");
-
-
-        if (delta > _settings.Timeout)
+        lock (_locker)
         {
-            _lastFile = _currentFile;
-            _currentFile = GetNewTarget(_lastFile);
-            _lastLinkModifiedTimestamp = now;
+            var now = DateTimeOffset.UtcNow;
+            // if _lastAccessTimestamp (and so delta) is null,
+            // this is the first request, rerolling is not necessary
+            TimeSpan? delta = now - _lastLinkReadTimestamp;
 
-            sb.Append("rerolling the target.");
+            var message = delta.HasValue
+                ? $"{delta.Value.TotalMilliseconds:0}ms since last "
+                : "First ";
+            var sb = new StringBuilder(message);
+            sb.Append($"{nameof(OnReadSymbolicLink)} request, ");
+
+            if (delta > _settings.Timeout)
+            {
+                _lastFile = _currentFile;
+                _currentFile = GetNewTarget(_lastFile);
+                _lastLinkModifiedTimestamp = now;
+
+                sb.Append("rerolling the target.");
+            }
+            else
+            {
+                sb.Append("keeping existing target");
+            }
+
+            _lastLinkReadTimestamp = now;
+            target = _currentFile;
+
+            Log(sb.ToString());
+
+            return 0;
         }
-        else
-        {
-            sb.Append("keeping existing target");
-        }
-
-        _lastLinkReadTimestamp = now;
-        target = _currentFile;
-
-        Log(sb.ToString());
-
-        return 0;
     }
-
-    // TODO should probably make this stuff thread-safe,
-    // at least using locks
 
     /// <summary>
     /// Dispatcher method to get the new target file name in a way relevant to the settings.
@@ -338,19 +342,22 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             return;
         }
 
-        Log($"{e.FullPath} added, registering.");
-
-        _filenames.Add(e.FullPath);
-
-        if (_filenames.Count == 1)
+        lock (_locker)
         {
-            Log("Consider adding more files to get random target symlinks.");
-        }
+            Log($"{e.FullPath} added, registering.");
 
-        if (_settings.UseQueue)
-        {
-            Log($"Creating a new queue from {_shuffledQueue!.Count} remaining and the new element.");
-            _shuffledQueue = new(_shuffledQueue!.Append(e.FullPath).OrderBy(fn => _random.Next()));
+            _filenames.Add(e.FullPath);
+
+            if (_filenames.Count == 1)
+            {
+                Log("Consider adding more files to get random target symlinks.");
+            }
+
+            if (_settings.UseQueue)
+            {
+                Log($"Creating a new queue from {_shuffledQueue!.Count} remaining and the new element.");
+                _shuffledQueue = new(_shuffledQueue!.Append(e.FullPath).OrderBy(fn => _random.Next()));
+            }
         }
     }
 
@@ -367,29 +374,32 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             return;
         }
 
-        Log($"{e.FullPath} removed, unregistering.");
+        lock (_locker)
+        {
+            Log($"{e.FullPath} removed, unregistering.");
 
-        var countMessage = _filenames.Count switch
-        {
-            0 => "No files left! Link will point to /dev/null until some files are added!",
-            1 => "Only one file left! Consider adding more files to get random target symlinks.",
-            _ => null
-        };
-        if (countMessage != null)
-        {
-            Log(countMessage);
-        }
+            var countMessage = _filenames.Count switch
+            {
+                0 => "No files left! Link will point to /dev/null until some files are added!",
+                1 => "Only one file left! Consider adding more files to get random target symlinks.",
+                _ => null
+            };
+            if (countMessage != null)
+            {
+                Log(countMessage);
+            }
 
-        if (_settings.UseQueue)
-        {
-            _shuffledQueue = new(_shuffledQueue!.Where(fn => fn != e.FullPath));
-            Log($"Removing the file from the queue as well. {_shuffledQueue.Count} elements remain in the queue.");
-        }
+            if (_settings.UseQueue)
+            {
+                _shuffledQueue = new(_shuffledQueue!.Where(fn => fn != e.FullPath));
+                Log($"Removing the file from the queue as well. {_shuffledQueue.Count} elements remain in the queue.");
+            }
 
-        if (_currentFile == e.FullPath)
-        {
-            Log("The deleted file was the current target, rerolling.");
-            _currentFile = GetNewTarget(_lastFile ?? string.Empty);
+            if (_currentFile == e.FullPath)
+            {
+                Log("The deleted file was the current target, rerolling.");
+                _currentFile = GetNewTarget(_lastFile ?? string.Empty);
+            }
         }
     }
 
@@ -406,23 +416,27 @@ internal sealed class RitsuFuseFileSystem : FileSystem
             return;
         }
 
-        Log($"{e.OldFullPath} renamed to {e.FullPath}, registering.");
-
-        _filenames.Remove(e.OldFullPath);
-        _filenames.Add(e.FullPath);
-        if (_settings.UseQueue)
+        lock (_locker)
         {
-            Log("Recreating the queue following renaming.");
-            _shuffledQueue = new(
-                _shuffledQueue!.Where(fn => fn != e.OldFullPath)
-                .Append(e.FullPath)
-                .OrderBy(fn => _random.Next()));
-        }
 
-        if (_currentFile == e.OldFullPath)
-        {
-            Log("The renamed file was the current target, renaming.");
-            _currentFile = e.FullPath;
+            Log($"{e.OldFullPath} renamed to {e.FullPath}, registering.");
+
+            _filenames.Remove(e.OldFullPath);
+            _filenames.Add(e.FullPath);
+            if (_settings.UseQueue)
+            {
+                Log("Recreating the queue following renaming.");
+                _shuffledQueue = new(
+                    _shuffledQueue!.Where(fn => fn != e.OldFullPath)
+                    .Append(e.FullPath)
+                    .OrderBy(fn => _random.Next()));
+            }
+
+            if (_currentFile == e.OldFullPath)
+            {
+                Log("The renamed file was the current target, renaming.");
+                _currentFile = e.FullPath;
+            }
         }
     }
 
