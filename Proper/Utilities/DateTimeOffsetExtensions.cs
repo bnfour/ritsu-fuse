@@ -12,8 +12,8 @@ public static class DateTimeOffsetExtensions
         return new()
         {
             tv_sec = dto.ToUnixTimeSeconds(),
-            tv_nsec = dto.Millisecond * 100_000 
-                + dto.Microsecond * 100
+            tv_nsec = dto.Millisecond * 1_000_000
+                + dto.Microsecond * 1_000
                 + dto.Nanosecond
         };
     }
