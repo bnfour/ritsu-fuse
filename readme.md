@@ -66,12 +66,12 @@ By setting the background image URL to a Ritsu FUSE symlink, you can get a fresh
 ![shoutout to pixl-garden.BongoCat extension, i like it a lot](readme-images/exhibit2.jpg)
 
 ## Requirements
-.NET 8 runtime and an OS that supports FUSE. Only tested on GNU/Linux, if you're brave enough to try it on another OS, you'll have to [build](#building-from-source) it yourself.
+.NET 8 runtime and an OS that supports FUSE. Only tested on GNU/Linux -- if you're brave enough to try it on another OS, you'll have to [build](#building-from-source) it yourself.
 
 ## Technical details
 The app will create a read-only FUSE file system. It's `/etc/mtab` entry generally looks like
 ```
-/home/user/Downloads/ritsu/random-file /tmp/demo fuse.ritsu ro,nosuid,nodev,relatime,user_id=1000,group_id=1000 0
+/path/to/target-folder/random-file /path/to/fs-root-folder fuse.ritsu ro,nosuid,nodev,relatime,user_id=1000,group_id=1000 0
 ```
 
 The folder and the symlink in it are owned by the user that started the app, but are readable by everyone (`0444` or `-r--r--r--`).
@@ -81,11 +81,11 @@ The link will then point to a random file directly inside the target folder, any
 The link will not change its target on _every_ read. Instead, if a [set amount of time](#timeout) has passed since the last read, the target is updated. This is so because most apps actually read the link a few times when pointed to it once, see for yourself in [verbose mode](#verbosity).
 
 The app handles changes to the list of files from the target folder, adjusting target pool accordingly. If no files remain, the link will point to `/dev/null`.
-TODO but what will happen if the folder is outright deleted?
+If the target folder itself was deleted, the link will still point to `/dev/null` even after a new folder with the same name is created and filled with files -- restart the app to pick up the new folder.
 
 ## Usage
 ```
-$ Bnfour.RitsuFuse.ConsoleApp -?
+$ ./Bnfour.RitsuFuse.ConsoleApp -?
 Description:
   Ritsu FUSE console launcher. Ritsu FUSE is a library to create a custom file system that provides a symlink to a random file in a folder, changing after every "meaningful" read.
 
@@ -142,9 +142,18 @@ Both of these options can be active at the same time!
 `-?`, `-h` or `--help` shows help information listed at the start of this section.
 
 ### Termination
-The created file system will be removed, leaving its root folder empty again when the app's process ends for any reason. It's also possible to use `umount(8)` like  
+It's preferable to use `umount(8)` like  
 `$ umount <file system root folder>`  
-to stop the app and also remove the created file system.
+to stop the app and remove the created file system, clearing the file system root folder.
+
+If the app's process ends for any reason, the FUSE file system will also be cleared.
+
+#### Exit codes
+Non-zero exit code indicates that some kind of error occured and the app did not exit cleanly.
+
+Defined exit codes:
+- 1: an unhandled exception has occured
+- 2: there are some configuration errors
 
 ## Usage as a library
 This repo contains two projects:
@@ -160,7 +169,7 @@ using Bnfour.RitsuFuse.Proper;
 new RitsuFuseWrapper().Start(settings);
 ```
 
-Where `settings` is a `RitsuFuseSettings` instance. This call will block -- so the only way to stop it is to kill the app or use `umount(8)`. (Not very useable, is it? Still figuring out a way to properly stop it.)
+Where `settings` is a `RitsuFuseSettings` instance. This call will block -- so the only way to stop it is to use `umount(8)` or to kill the app. (Not very useable, is it? [This is related to the architecture of the underlying libraries.](https://github.com/alhimik45/Mono.Fuse.NETStandard/issues/3))
 
 ### RitsuFuseSettings
 `RitsuFuseSettings` is a POCO that mostly corresponds to the [console wrapper's options](#options):
@@ -188,7 +197,7 @@ The only new property is `LogAction` which is invoked if verbose mod is enabled 
 #### Validation
 The settings are validated before the file system is created. If any errors are found, an `AggregateException` is thrown, its `InnerExceptions` will contain all validation errors as `SettingsValidationException` -- check their messages to know why the library rejects your input.
 
-Validation is done in the library itself, so the default wrapper does no validation beyond type check via System.Commandline.
+Validation is done in the library itself, so the console default wrapper does no validation beyond type check via System.Commandline.
 
 ## Building from source
 `dotnet build`, no quirks here.
