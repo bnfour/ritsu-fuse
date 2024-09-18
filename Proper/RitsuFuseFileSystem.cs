@@ -91,7 +91,7 @@ internal sealed class RitsuFuseFileSystem : FileSystem
 
         _fsCreationTimestamp = DateTimeOffset.UtcNow;
 
-        Log($"{nameof(RitsuFuseFileSystem)} starting at {_fsCreationTimestamp}. Hello, world!");
+        Log($"{nameof(RitsuFuseFileSystem)} starting. Hello, world!");
 
         MountPoint = _settings.FileSystemRoot;
         DefaultUserId = GetId("-u");
