@@ -72,11 +72,9 @@ public class Program
         customVersionOption.AddAlias("-v");
         rootCommand.AddGlobalOption(customVersionOption);
 
-        // the default handler for --version takes over custom stuff,
-        // so it is excluded from the pipeline here
         var commandLineBuilder = new CommandLineBuilder(rootCommand);
-        // instead we use a custom middleware to display versions of two assemblies
-        // this _in theory_ should override any other options
+        // a custom middleware to display versions of two assemblies
+        // this overrides any other options, if any present
         commandLineBuilder.AddMiddleware(async (context, next) =>
         {
             if (context.ParseResult.HasOption(customVersionOption))
@@ -88,21 +86,14 @@ public class Program
                 await next(context);
             }
         });
-
-        // basically, UseDefaults but without the version option
-        // because it takes over our custom handler
+        // totally stripped down version of Builder.UseDefaults
+        // to provide only basic features, except for the default --version handler
+        // (it takes over custom middleware as well)
         commandLineBuilder
             .UseHelp()
-            .UseEnvironmentVariableDirective()
-            .UseParseDirective()
-            .UseSuggestDirective()
-            .RegisterWithDotnetSuggest()
             .UseTypoCorrections()
             .UseParseErrorReporting()
-            .UseExceptionHandler()
-            .CancelOnProcessTermination();
-        // TODO consider whether these options are needed
-
+            .UseExceptionHandler(errorExitCode: 2);
 
         return commandLineBuilder.Build();
     }
