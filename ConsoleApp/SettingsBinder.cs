@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Binding;
+
 using Bnfour.RitsuFuse.Proper;
 
 namespace Bnfour.RitsuFuse.ConsoleApp;

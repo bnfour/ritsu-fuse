@@ -12,7 +12,6 @@ I have a vague understanding of FUSE internals and related mono wrappers, the ap
 
 A lot of insight was gained from [this article](http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/). It's a way better way to learn FUSE hands-on than this repo.
 
-
 ###### Why?
 That's an excellent question! I'm torn between "why not" and "no idea" ¯\\\_(ツ)\_/¯
 
@@ -73,7 +72,7 @@ By setting the background image URL to a Ritsu FUSE symlink, you can get a fresh
 .NET 8 runtime and an OS that supports FUSE. Only tested on GNU/Linux -- if you're brave enough to try it on another OS, you'll have to [build](#building-from-source) it yourself.
 
 ## Technical details
-The app will create a read-only FUSE file system. It's `/etc/mtab` entry generally looks like
+The app creates a read-only FUSE file system. Its `/etc/mtab` entry generally looks like
 ```
 /path/to/target-folder/random-file /path/to/fs-root-folder fuse.ritsu ro,nosuid,nodev,relatime,user_id=1000,group_id=1000 0
 ```
@@ -82,10 +81,21 @@ The folder and the symlink in it are owned by the user that started the app, but
 
 The link will then point to a random file directly inside the target folder, any subfolders are ignored.
 
-The link will not change its target on _every_ read. Instead, if a [set amount of time](#timeout) has passed since the last read, the target is updated. This is so because most apps actually read the link a few times when pointed to it once, see for yourself in [verbose mode](#verbosity).
+### Link target changes
+The link will not change its target on _every_ read. Instead, if a [set amount of time](#timeout) has passed since the last read, the target is updated. Most apps actually read the link a few times when pointed to it once -- see for yourself using [verbose mode](#verbosity) -- so this keeps the target stable between these links.
 
+### Runtime file changes
 The app handles changes to the list of files from the target folder, adjusting target pool accordingly. If no files remain, the link will point to `/dev/null`.
-If the target folder itself was deleted, the link will still point to `/dev/null` even after a new folder with the same name is created and filled with files -- restart the app to pick up the new folder.
+
+If the target folder itself was deleted, the link will still point to `/dev/null` (as the files were deleted first), even after a new folder with the same name is created and filled with files -- restart the app to pick up the new folder.
+
+### Implementation limitations
+The app implements a very small subset of FUSE file system capabilities. It is possible to:
+- stat the folder and the link within
+- see the folder's contents (the link)
+- read the link
+
+The rest of the file operations are not supported. The file system is forced read-only to prevent some of these unsupported operations.
 
 ## Usage
 ```
@@ -173,11 +183,12 @@ using Bnfour.RitsuFuse.Proper;
 new RitsuFuseWrapper().Start(settings);
 ```
 
-Where `settings` is a `RitsuFuseSettings` instance. This call will block -- so the only way to stop it is to use `umount(8)` or to kill the app. (Not very useable, is it? [This is related to the architecture of the underlying libraries.](https://github.com/alhimik45/Mono.Fuse.NETStandard/issues/3))
+Where `settings` is a `RitsuFuseSettings` instance. This call will block -- so the only way to proceed further is to use `umount(8)` (or to kill the app).
+
+[This is related to the architecture of the underlying libraries.](https://github.com/alhimik45/Mono.Fuse.NETStandard/issues/3)
 
 ### RitsuFuseSettings
 `RitsuFuseSettings` is a POCO that mostly corresponds to the [console wrapper's options](#options):
-
 ```csharp
 // stripped down to essentials
 public class RitsuFuseSettings
@@ -196,12 +207,12 @@ public class RitsuFuseSettings
     public bool UseQueue { get; set; } = false;
 }
 ```
-The only new property is `LogAction` which is invoked if verbose mod is enabled to produce a statement. In my own wrapper, it is simply assigned to `Console.WriteLine`.
+The only new property is `LogAction` which is invoked if verbose mod is enabled to produce a statement. In the console wrapper, it is simply assigned to `Console.WriteLine`.
 
 #### Validation
 The settings are validated before the file system is created. If any errors are found, an `AggregateException` is thrown, its `InnerExceptions` will contain all validation errors as `SettingsValidationException` -- check their messages to know why the library rejects your input.
 
-Validation is done in the library itself, so the console default wrapper does no validation beyond type check via System.Commandline.
+Validation is done in the library proper, so the console default wrapper does no validation beyond type check via System.Commandline.
 
 ## Building from source
 `dotnet build`, no quirks here.

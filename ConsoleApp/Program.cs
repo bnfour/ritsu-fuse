@@ -68,6 +68,7 @@ public class Program
         rootCommand.SetHandler(Start, new SettingsBinder(targetFolderArgument, rootFolderArgument, timeoutOption, verboseOption, noRepeatsOption, queueOption, linkNameOption));
         #endregion
 
+        #region custom --version handler
         var customVersionOption = new Option<bool>("--version", "Display versions for this app and used library");
         customVersionOption.AddAlias("-v");
         rootCommand.AddGlobalOption(customVersionOption);
@@ -86,6 +87,7 @@ public class Program
                 await next(context);
             }
         });
+        #endregion
         // totally stripped down version of Builder.UseDefaults
         // to provide only basic features, except for the default --version handler
         // (it takes over custom middleware as well)
@@ -93,7 +95,7 @@ public class Program
             .UseHelp()
             .UseTypoCorrections()
             .UseParseErrorReporting()
-            .UseExceptionHandler(errorExitCode: 2);
+            .UseExceptionHandler(errorExitCode: 1);
 
         return commandLineBuilder.Build();
     }

@@ -19,7 +19,6 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     private readonly RitsuFuseSettings _settings;
 
     #region file-shuffling related fields
-
     private readonly Random _random;
 
     /// <summary>
@@ -45,7 +44,6 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// Used to enable <see cref="RitsuFuseSettings.UseQueue"/> option.
     /// </summary>
     private Queue<string>? _shuffledQueue;
-
     #endregion
 
     #region timestamp-related fields
@@ -76,7 +74,6 @@ internal sealed class RitsuFuseFileSystem : FileSystem
     /// Reported as its atime.
     /// </summary>
     private DateTimeOffset? _lastFolderAccessTimestamp;
-    
     #endregion
 
     private readonly FileSystemWatcher _fsWatcher;

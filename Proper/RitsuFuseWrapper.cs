@@ -1,4 +1,5 @@
 using System.Reflection;
+
 using Bnfour.RitsuFuse.Proper.Exceptions;
 using Bnfour.RitsuFuse.Proper.Validation;
 
