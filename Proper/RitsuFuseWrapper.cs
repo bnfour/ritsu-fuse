@@ -1,4 +1,5 @@
 using System.Reflection;
+
 using Bnfour.RitsuFuse.Proper.Exceptions;
 using Bnfour.RitsuFuse.Proper.Validation;
 
@@ -19,7 +20,6 @@ public class RitsuFuseWrapper
         // mount as read-only file system
         "-o ro",
         // release the file system when app is terminated
-        // TODO it is considered dangerous in the man, is it worth it?
         "-o auto_unmount",
         // file system subtype, diplayed in third field in /etc/mtab
         // as "fuse.ritsu"
@@ -29,6 +29,11 @@ public class RitsuFuseWrapper
         string.Empty
     ];
 
+    /// <summary>
+    /// Starts a file system instance. This call will block until the app is killed,
+    /// or umount is used on the file system root folder.
+    /// </summary>
+    /// <param name="settings">Settings to use, yet to be validated.</param>
     public void Start(RitsuFuseSettings settings)
     {
         Validate(settings);
@@ -37,7 +42,7 @@ public class RitsuFuseWrapper
         {
             _fuseOptions[^1] = $"-o fsname={Path.Combine(settings.TargetFolder, "random-file")}";
             fs.ParseFuseArguments(_fuseOptions);
-            // fs.Start();
+            fs.Start();
         }
     }
 

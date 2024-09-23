@@ -6,7 +6,7 @@ namespace Bnfour.RitsuFuse.Proper.Validation;
 internal interface ISettingsValidator
 {
     /// <summary>
-    /// Throws if provided settings instance does not match expectations.
+    /// Throws a SettingsValidationException if provided settings instance does not match expectations.
     /// </summary>
     /// <param name="settings">Instance to check.</param>
     void Validate(RitsuFuseSettings settings);
