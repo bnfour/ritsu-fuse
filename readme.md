@@ -220,9 +220,10 @@ Validation is done in the library proper, so the console default wrapper does no
 ## Acknowldgements
 In addition to the standard library, Ritsu FUSE also uses the following libraries (thanks!):
 - [Mono.Fuse.NETStandard](https://www.nuget.org/packages/Mono.Fuse.NETStandard)
+- - [Mono.Posix.NETStandard](https://www.nuget.org/packages/Mono.Posix.NETStandard) also included as a transient dependency
 - [System.CommandLine](https://www.nuget.org/packages/System.CommandLine)
 
-Both are avaiable under MIT licenses, see [third-party-notices.txt](third-party-notices.txt) for the full texts.
+All avaiable under MIT licenses, see [third-party-notices.txt](third-party-notices.txt) for the full texts.
 
 ## License
 MIT, see [LICENSE](LICENSE) for the full text.
