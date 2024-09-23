@@ -44,7 +44,7 @@ I actually don't use these -- this is an offhand attempt to justify the app's ex
 #### New tab for Firefox
 Here the app is used to randomize a background image for the new tab:
 
-TODO ffox video
+https://github.com/user-attachments/assets/e32675ab-fe61-4816-bfc4-cc5a84ac9fcd
 
 It's not really useful given that:
 - the images are cached most of the time
