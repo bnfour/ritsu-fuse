@@ -29,6 +29,11 @@ public class RitsuFuseWrapper
         string.Empty
     ];
 
+    /// <summary>
+    /// Starts a file system instance. This call will block until the app is killed,
+    /// or umount is used on the file system root folder.
+    /// </summary>
+    /// <param name="settings">Settings to use, yet to be validated.</param>
     public void Start(RitsuFuseSettings settings)
     {
         Validate(settings);

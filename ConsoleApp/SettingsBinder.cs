@@ -5,6 +5,9 @@ using Bnfour.RitsuFuse.Proper;
 
 namespace Bnfour.RitsuFuse.ConsoleApp;
 
+/// <summary>
+/// Binds command-line options to a <see cref="RitsuFuseSettings"/> instance.
+/// </summary>
 internal class SettingsBinder(
     Argument<FileInfo> targetFolderArgument,
     Argument<FileInfo> rootFolderArgument,
@@ -14,7 +17,6 @@ internal class SettingsBinder(
     Option<bool> queueOption,
     Option<string> linkNameOption): BinderBase<RitsuFuseSettings>
 {
-
     protected override RitsuFuseSettings GetBoundValue(BindingContext bindingContext)
         => new()
         {
