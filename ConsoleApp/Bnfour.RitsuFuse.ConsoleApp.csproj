@@ -16,4 +16,9 @@
     <ProjectReference Include="..\Proper\Bnfour.RitsuFuse.Proper.csproj" />
   </ItemGroup>
 
+  <ItemGroup Label="Text files to include">
+    <None Include="..\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <None Include="..\third-party-notices.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+  </ItemGroup>
+
 </Project>
