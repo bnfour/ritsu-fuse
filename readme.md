@@ -1,9 +1,9 @@
 # Ritsu FUSE
 _(originally derived from "Random Target Symlink + Filesystem in Userspace")_
 
-**Ritsu FUSE** is a .NET app and/or library to create custom filesystems which contain symbolic links that change targets to a random file from a given folder after each "meaningful" read. "Meaningful" as in "the app probably does all the reads it needed in a small amount of time".
+**Ritsu FUSE** is a .NET app and/or library to create custom filesystems which contain symbolic links that change targets to a random file from a given folder after each "meaningful" read. "Meaningful" as in "the app probably does all the reads it needs in a small amount of time".
 
-The main use is probably the extension of apps that only support loading a single file from fixed path for some purpose. By providing it with a Ritsu FUSE symlink, you can trick it to load different files every invocation. Unless it has an aggressive cache.
+The main use case is probably the extension of apps that only support loading a single file from fixed path for some purpose. By providing it with a Ritsu FUSE symlink, you can trick it to load different files every invocation. Unless it has an aggressive cache.
 
 ## Disclaimers
 Don't take it too seriously. It's more of a quick-and-dirty concept implementation than a production-ready robust app.
@@ -58,7 +58,7 @@ It's not really useful given that:
 
 Basically, this is a combination of <a href="https://addons.mozilla.org/en-US/firefox/addon/new-tab-override/">New Tab Override</a> with a custom webserver on localhost that just returns an image by reading the Ritsu FUSE symlink. A webserver could also do the "return random image" stuff, but there's already a dedicated app, so it just follows the link.
 
-There's also some additional setup to defeat caching -- otherwise, there would be a new random image every browser start. And the extension's new tab URL is no longer auto-selected in the address bar.
+There's also some additional setup to defeat caching -- otherwise, there would be a new random image every browser start.
 </details>
 
 #### VS Code background
@@ -130,6 +130,7 @@ It is possible to add/remove files while the app is running, but please don't ab
 
 ### Options
 The rest of the options are optional and default to some value if unset. They can be used to fine-tune the app's behaviour.
+
 #### Timeout
 `--timeout <n>` where n > 1 sets the amount of time (in milliseconds, 100 by default) between link reads to be considered separate read, to which separate files are provided.
 
@@ -174,7 +175,7 @@ This repo contains two projects:
 - `Bnfour.RitsuFuse.ConsoleApp` is a simple console wrapper
 - `Bnfour.RitsuFuse.Proper` is a library that does actual work
 
-The library proper can be used with your code. For a detailed usage info, check the actual source code.
+The library proper can be used with your code. For a usage example, have a look at the included console wrapper.
 
 ### Calling
 ```csharp
